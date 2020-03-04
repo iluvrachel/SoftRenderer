@@ -3,3 +3,5 @@
 *.tga
 *.o
 *.gch
+*.obj
+*.png

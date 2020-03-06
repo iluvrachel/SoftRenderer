@@ -1,5 +1,6 @@
 #include "tgaimage.h"
 #include "read_obj.h"
+#include "vec.h"
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
@@ -92,21 +93,22 @@ void fill_triangle(int x0,int y0,int x1,int y1,int x2,int y2,TGAImage &image,TGA
 void draw_wireframe(std::string obj_path,TGAImage &image,int height, int width){
     Obj obj;
     obj.read_obj(obj_path);
-    for(int i=0;i<obj.f_list.size(); i+=3){
+    for(int i=0;i<obj.f_list.size(); i++){
         
-        float x0 = obj.vx_list[obj.f_list[i]];
+        float x0 = obj.v_list[obj.f_list[i][0]][0];
         //std::cout<<obj.f_list[i]<<" "<<obj.f_list[i+1]<<std::endl;
         x0 = (x0+1.)*width/2.;
-        float y0 = obj.vy_list[obj.f_list[i]];
+        float y0 = obj.v_list[obj.f_list[i][0]][1];
         y0 = (y0+1.)*height/2.;
-        float x1 = obj.vx_list[obj.f_list[i+1]];
+        float x1 = obj.v_list[obj.f_list[i][1]][0];
         x1 = (x1+1.)*width/2.;
-        float y1 = obj.vy_list[obj.f_list[i+1]];
+        float y1 = obj.v_list[obj.f_list[i][1]][1];
         y1 = (y1+1.)*height/2.;
-        float x2 = obj.vx_list[obj.f_list[i+2]];
+        float x2 = obj.v_list[obj.f_list[i][2]][0];
         x2 = (x2+1.)*width/2.;
-        float y2 = obj.vy_list[obj.f_list[i+2]];
+        float y2 = obj.v_list[obj.f_list[i][2]][1];
         y2 = (y2+1.)*height/2.;
+
 
         
         //std::cout<<x0<<" "<<x1<<" "<<x2<<std::endl;
@@ -120,26 +122,51 @@ void draw_wireframe(std::string obj_path,TGAImage &image,int height, int width){
 void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
     Obj obj;
     obj.read_obj(obj_path);
-    for(int i=0;i<obj.f_list.size(); i+=3){
+    for(int i=0;i<obj.f_list.size(); i++){
         
-        float x0 = obj.vx_list[obj.f_list[i]];
-        //std::cout<<obj.f_list[i]<<" "<<obj.f_list[i+1]<<std::endl;
-        x0 = (x0+1.)*width/2.;
-        float y0 = obj.vy_list[obj.f_list[i]];
-        y0 = (y0+1.)*height/2.;
-        float x1 = obj.vx_list[obj.f_list[i+1]];
-        x1 = (x1+1.)*width/2.;
-        float y1 = obj.vy_list[obj.f_list[i+1]];
-        y1 = (y1+1.)*height/2.;
-        float x2 = obj.vx_list[obj.f_list[i+2]];
-        x2 = (x2+1.)*width/2.;
-        float y2 = obj.vy_list[obj.f_list[i+2]];
-        y2 = (y2+1.)*height/2.;
+        float x0 = obj.v_list[obj.f_list[i][0]][0];
+        //x0 = (x0+1.)*width/2.;
+        float y0 = obj.v_list[obj.f_list[i][0]][1];
+        //y0 = (y0+1.)*height/2.;
+        float z0 = obj.v_list[obj.f_list[i][0]][2];
+        //z0 = (z0+1.)*height/2.;
+        float x1 = obj.v_list[obj.f_list[i][1]][0];
+        //x1 = (x1+1.)*width/2.;
+        float y1 = obj.v_list[obj.f_list[i][1]][1];
+        //y1 = (y1+1.)*height/2.;
+        float z1 = obj.v_list[obj.f_list[i][1]][2];
+        //z1 = (z1+1.)*height/2.;
+        float x2 = obj.v_list[obj.f_list[i][2]][0];
+        //x2 = (x2+1.)*width/2.;
+        float y2 = obj.v_list[obj.f_list[i][2]][1];
+        //y2 = (y2+1.)*height/2.;
+        float z2 = obj.v_list[obj.f_list[i][2]][2];
+        //z2 = (z2+1.)*height/2.;
 
+        Vec3f p0(x0,y0,z0);
+        Vec3f p1(x1,y1,z1);
+        Vec3f p2(x2,y2,z2);
+
+        Vec3f n = (p2-p0)^(p1-p0);
+        n.normalize();
+        //std::cout<<p2<<std::endl;
+        // Vec3f n_tmp ( n.x*(1/n.norm()) ,n.y*(1/n.norm()), n.z*(1/n.norm()) );
+        //n = n*(1/n.norm());
+        //std::cout<<n.x<<" "<<(1/n.norm())<<" "<<n_tmp.x<<std::endl;
+        Vec3f light(0.,0.,-1.);
+        float intensity = n*light;
         
-        //std::cout<<x0<<" "<<x1<<" "<<x2<<std::endl;
-        fill_triangle(x0,y0,x1,y1,x2,y2,image,TGAColor(rand()%255, rand()%255, rand()%255, 255));
-
+        
+        if(intensity>0){
+            x0 = (x0+1.)*width/2.;
+            y0 = (y0+1.)*height/2.;
+            x1 = (x1+1.)*width/2.;
+            y1 = (y1+1.)*height/2.;
+            x2 = (x2+1.)*width/2.;
+            y2 = (y2+1.)*height/2.;
+            fill_triangle(x0,y0,x1,y1,x2,y2,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
+        }
+        
 
     }
 

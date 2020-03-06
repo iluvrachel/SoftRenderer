@@ -1,8 +1,8 @@
 /*
  * @Author: your name
  * @Date: 2020-03-03 15:43:15
- * @LastEditTime: 2020-03-06 14:42:41
- * @LastEditors: your name
+ * @LastEditTime: 2020-03-06 23:13:43
+ * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: \SoftRenderer\read_obj.h
  */
@@ -19,9 +19,10 @@ class Obj {
     public: 
         int vn = 0;
         int fn = 0;
-        std::vector<float> vx_list;
-        std::vector<float> vy_list;
-        std::vector<int> f_list;
+        // std::vector<float> vx_list;
+        // std::vector<float> vy_list;
+        std::vector<std::vector<float>> v_list;
+        std::vector<std::vector<int>> f_list;
 
         Obj();
         void read_obj(std::string filename);
@@ -56,10 +57,13 @@ void Obj::read_obj(std::string file_name){
 			else{
                     std::istringstream IL(line);
 					IL >> str >> x >> y >> z;
-					vx_list.push_back(x);
-					vy_list.push_back(y);
+                    std::vector<float> cur_v;
+                    cur_v.push_back(x);
+                    cur_v.push_back(y);
+                    cur_v.push_back(z);
+                    //std::cout<<cur_v[0]<<std::endl;
+                    v_list.push_back(cur_v);
 				}
-			
 		}
 		else if(line[0] == 'f'){
 			std::istringstream IL(line);
@@ -70,17 +74,19 @@ void Obj::read_obj(std::string file_name){
             //     f_list.push_back(ix);
             //     std::cout<<ix<<std::endl;
             // }
-			for(int i = 0;i < 3;i++){	
+            std::vector<int> cur_f;	
+			for(int i = 0;i < 3;i++){
+ 
 				IL  >> ix >> c>> iy >> c >>iz ;
-                f_list.push_back(ix-1);
-                //std::cout<<c<<std::endl;
-				
+                cur_f.push_back(ix-1);	
 			}
+            //std::cout<<cur_f[0]<<std::endl;
+            f_list.push_back(cur_f);
              
         }    
     }
-    vn = vx_list.size();
-    fn = f_list.size()/3;
+    vn = v_list.size();
+    fn = f_list.size();
     in.close();
 }
 

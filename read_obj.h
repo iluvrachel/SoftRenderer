@@ -1,3 +1,11 @@
+/*
+ * @Author: your name
+ * @Date: 2020-03-03 15:43:15
+ * @LastEditTime: 2020-03-06 14:42:41
+ * @LastEditors: your name
+ * @Description: In User Settings Edit
+ * @FilePath: \SoftRenderer\read_obj.h
+ */
 #ifndef __OBJ_H__
 #define __OBJ_H__
 
@@ -65,7 +73,7 @@ void Obj::read_obj(std::string file_name){
 			for(int i = 0;i < 3;i++){	
 				IL  >> ix >> c>> iy >> c >>iz ;
                 f_list.push_back(ix-1);
-                std::cout<<c<<std::endl;
+                //std::cout<<c<<std::endl;
 				
 			}
              

@@ -1,9 +1,12 @@
 #include "tgaimage.h"
 #include "read_obj.h"
 #include "vec.h"
+#include <limits>
 
 const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
+const int height = 400;
+const int width = 400;
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) { 
     bool steep = false; 
@@ -62,6 +65,19 @@ void swap(int& x0, int& y0, int& x1, int& y1){
 
 // }
 
+Vec3f barycentric(Vec3f A, Vec3f B, Vec3f C, Vec3f P) {
+    //Vec3f s[2];
+    Vec3f eq_x(C.x-A.x, B.x-A.x, A.x-P.x);
+    Vec3f eq_y(C.y-A.y, B.y-A.y, A.y-P.y);
+    // solve linear equation in two unknows 
+
+    Vec3f u = eq_x^eq_y;//u,v
+    if (std::abs(u.z)>1e-2) // dont forget that u.z is integer. If it is zero then triangle ABC is degenerate
+        return Vec3f(1.f-(u.x+u.y)/u.z, u.y/u.z, u.x/u.z); // (1-u-v), u, v
+    return Vec3f(-1,1,1); // in this case generate negative coordinates, it will be thrown away by the rasterizator
+}
+
+
 bool edge_equation(int x0,int y0,int x1,int y1,int x2,int y2, int cur_x, int cur_y){
     int eq_cur = (y2-y1)*cur_x + (x1-x2)*cur_y + (x2*y1 - x1*y2);
     int eq_another = (y2-y1)*x0 + (x1-x2)*y0 + (x2*y1 - x1*y2);
@@ -72,19 +88,41 @@ bool edge_equation(int x0,int y0,int x1,int y1,int x2,int y2, int cur_x, int cur
     return false;
 }
 
-void fill_triangle(int x0,int y0,int x1,int y1,int x2,int y2,TGAImage &image,TGAColor color){
+void fill_triangle(float *zbuffer,int x0,int y0,float z0,int x1,int y1,float z1,int x2,int y2,float z2,TGAImage &image,TGAColor color){
     // find bounding box of the triangle
-    int bb_top = y0 > y1 ? (y0 > y2 ? y0 : y2) : (y1 > y2 ? y1 : y2) +1;
-    int bb_bottom = y0 < y1 ? (y0 < y2 ? y0 : y2) : (y1 < y2 ? y1 : y2) -1;
-    int bb_right = x0 > x1 ? (x0 > x2 ? x0 : x2) : (x1 > x2 ? x1 : x2) +1;
-    int bb_left = x0 < x1 ? (x0 < x2 ? x0 : x2) : (x1 < x2 ? x1 : x2) -1;
+    int bb_top = y0 > y1 ? (y0 > y2 ? y0 : y2) : (y1 > y2 ? y1 : y2) ;
+    int bb_bottom = y0 < y1 ? (y0 < y2 ? y0 : y2) : (y1 < y2 ? y1 : y2) ;
+    int bb_right = x0 > x1 ? (x0 > x2 ? x0 : x2) : (x1 > x2 ? x1 : x2) ;
+    int bb_left = x0 < x1 ? (x0 < x2 ? x0 : x2) : (x1 < x2 ? x1 : x2) ;
+    Vec3f P;
     for(int i=bb_left; i<=bb_right; i++){
         for(int j=bb_bottom; j<=bb_top; j++){
-            if(edge_equation(x0,y0,x1,y1,x2,y2,i,j) && 
-               edge_equation(x1,y1,x2,y2,x0,y0,i,j) &&
-               edge_equation(x2,y2,x1,y1,x0,y0,i,j)){
-                //std::cout<<i<<" "<<j<<std::endl;
-                image.set(i, j, color);
+            Vec3f pA(x0,y0,z0);
+            Vec3f pB(x1,y1,z1);
+            Vec3f pC(x2,y2,z2);
+            
+            P.x = i;
+            P.y = j;
+            Vec3f bc = barycentric(pA,pB,pC,P);
+            if (bc.x<0 || bc.y<0 || bc.z<0) continue;
+            // if(edge_equation(x0,y0,x1,y1,x2,y2,i,j) && 
+            //    edge_equation(x1,y1,x2,y2,x0,y0,i,j) &&
+            //    edge_equation(x2,y2,x1,y1,x0,y0,i,j)){
+            //     image.set(i, j, color);
+            // }
+            P.z = 0;
+            P.z += pA.z*bc.x + pB.z*bc.y + pC.z*bc.z;
+            
+            if (zbuffer[int(P.x+P.y*width)]<P.z) {
+                //std::cout<<P.z<<" "<<zbuffer[int(P.x+P.y*width)]<<std::endl;
+                //if(i==290 && j==200) std::cout<<" "<<i<<" "<<j<<" "<<P.z<<" "<<zbuffer[int(P.x+P.y*width)]<<std::endl;
+                zbuffer[int(P.x+P.y*width)] = P.z;
+                //if(i==290 && j==200) std::cout<<" "<<i<<" "<<j<<" "<<P.z<<" "<<zbuffer[int(P.x+P.y*width)]<<std::endl;
+                //std::cout<<P.z<<" "<<zbuffer[int(P.x+P.y*width)]<<std::endl;
+                image.set(P.x, P.y, color);
+            }
+            else{
+                //std::cout<<P<<std::endl;
             }
         }
     }
@@ -120,6 +158,11 @@ void draw_wireframe(std::string obj_path,TGAImage &image,int height, int width){
 }
 
 void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
+
+    float *zbuffer = new float[width*height];
+    for (int i=width*height;i>=0; i--){
+        zbuffer[i] = -std::numeric_limits<float>::max();
+    }
     Obj obj;
     obj.read_obj(obj_path);
     for(int i=0;i<obj.f_list.size(); i++){
@@ -157,14 +200,15 @@ void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
         float intensity = n*light;
         
         
+        
         if(intensity>0){
-            x0 = (x0+1.)*width/2.;
-            y0 = (y0+1.)*height/2.;
-            x1 = (x1+1.)*width/2.;
-            y1 = (y1+1.)*height/2.;
-            x2 = (x2+1.)*width/2.;
-            y2 = (y2+1.)*height/2.;
-            fill_triangle(x0,y0,x1,y1,x2,y2,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
+            x0 = (x0+1.)*width/2.+.5;
+            y0 = (y0+1.)*height/2.+.5;
+            x1 = (x1+1.)*width/2.+.5;
+            y1 = (y1+1.)*height/2.+.5;
+            x2 = (x2+1.)*width/2.+.5;
+            y2 = (y2+1.)*height/2.+.5;
+            fill_triangle(zbuffer,x0,y0,z0,x1,y1,z1,x2,y2,z2,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
         }
         
 
@@ -173,8 +217,7 @@ void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
 }
 
 int main(int argc, char** argv) {
-    int height = 400;
-    int width = 400;
+
 	TGAImage image(height, width, TGAImage::RGB);
 	image.set(52, 41, red);
 

@@ -8,6 +8,8 @@ const TGAColor red   = TGAColor(255, 0,   0,   255);
 const int height = 400;
 const int width = 400;
 
+Obj obj;
+
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) { 
     bool steep = false; 
     if (std::abs(x0-x1)<std::abs(y0-y1)) { 
@@ -88,22 +90,23 @@ bool edge_equation(int x0,int y0,int x1,int y1,int x2,int y2, int cur_x, int cur
     return false;
 }
 
-void fill_triangle(float *zbuffer,int x0,int y0,float z0,int x1,int y1,float z1,int x2,int y2,float z2,TGAImage &image,TGAColor color){
+void fill_triangle(float *zbuffer,Vec3f p0,Vec3f p1,Vec3f p2,
+                    TGAImage &image,Vec3f t0,Vec3f t1,Vec3f t2, Vec3f n0,Vec3f n1,Vec3f n2){
     // find bounding box of the triangle
-    int bb_top = y0 > y1 ? (y0 > y2 ? y0 : y2) : (y1 > y2 ? y1 : y2) ;
-    int bb_bottom = y0 < y1 ? (y0 < y2 ? y0 : y2) : (y1 < y2 ? y1 : y2) ;
-    int bb_right = x0 > x1 ? (x0 > x2 ? x0 : x2) : (x1 > x2 ? x1 : x2) ;
-    int bb_left = x0 < x1 ? (x0 < x2 ? x0 : x2) : (x1 < x2 ? x1 : x2) ;
+    int bb_top = p0.y > p1.y ? (p0.y > p2.y ? p0.y : p2.y) : (p1.y > p2.y ? p1.y : p2.y) ;
+    int bb_bottom = p0.y < p1.y ? (p0.y < p2.y ? p0.y : p2.y) : (p1.y < p2.y ? p1.y : p2.y) ;
+    int bb_right = p0.x > p1.x ? (p0.x > p2.x ? p0.x : p2.x) : (p1.x > p2.x ? p1.x : p2.x) ;
+    int bb_left = p0.x < p1.x ? (p0.x < p2.x ? p0.x : p2.x) : (p1.x < p2.x ? p1.x : p2.x) ;
     Vec3f P;
     for(int i=bb_left; i<=bb_right; i++){
         for(int j=bb_bottom; j<=bb_top; j++){
-            Vec3f pA(x0,y0,z0);
-            Vec3f pB(x1,y1,z1);
-            Vec3f pC(x2,y2,z2);
+            // Vec3f pA(x0,y0,z0);
+            // Vec3f pB(x1,y1,z1);
+            // Vec3f pC(x2,y2,z2);
             
             P.x = i;
             P.y = j;
-            Vec3f bc = barycentric(pA,pB,pC,P);
+            Vec3f bc = barycentric(p0,p1,p2,P);
             if (bc.x<0 || bc.y<0 || bc.z<0) continue;
             // if(edge_equation(x0,y0,x1,y1,x2,y2,i,j) && 
             //    edge_equation(x1,y1,x2,y2,x0,y0,i,j) &&
@@ -111,7 +114,13 @@ void fill_triangle(float *zbuffer,int x0,int y0,float z0,int x1,int y1,float z1,
             //     image.set(i, j, color);
             // }
             P.z = 0;
-            P.z += pA.z*bc.x + pB.z*bc.y + pC.z*bc.z;
+            P.z += p0.z*bc.x + p1.z*bc.y + p2.z*bc.z;
+
+            Vec2f texture_p(0,0);
+
+            texture_p.x = t0.x*bc.x + t1.x*bc.y + t2.x*bc.z;
+            texture_p.y = t0.y*bc.x + t1.y*bc.y + t2.y*bc.z;
+            
             
             if (zbuffer[int(P.x+P.y*width)]<P.z) {
                 //std::cout<<P.z<<" "<<zbuffer[int(P.x+P.y*width)]<<std::endl;
@@ -119,6 +128,8 @@ void fill_triangle(float *zbuffer,int x0,int y0,float z0,int x1,int y1,float z1,
                 zbuffer[int(P.x+P.y*width)] = P.z;
                 //if(i==290 && j==200) std::cout<<" "<<i<<" "<<j<<" "<<P.z<<" "<<zbuffer[int(P.x+P.y*width)]<<std::endl;
                 //std::cout<<P.z<<" "<<zbuffer[int(P.x+P.y*width)]<<std::endl;
+
+                TGAColor color = obj.diffuse(texture_p);
                 image.set(P.x, P.y, color);
             }
             else{
@@ -163,7 +174,7 @@ void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
     for (int i=width*height;i>=0; i--){
         zbuffer[i] = -std::numeric_limits<float>::max();
     }
-    Obj obj;
+    
     obj.read_obj(obj_path);
     for(int i=0;i<obj.f_list.size(); i++){
         
@@ -199,16 +210,26 @@ void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
         Vec3f light(0.,0.,-1.);
         float intensity = n*light;
         
+        Vec3f t0(obj.vt_list[obj.f_vt_list[i][0]][0],obj.vt_list[obj.f_vt_list[i][0]][1],obj.vt_list[obj.f_vt_list[i][0]][2]);
+        Vec3f t1(obj.vt_list[obj.f_vt_list[i][1]][0],obj.vt_list[obj.f_vt_list[i][1]][1],obj.vt_list[obj.f_vt_list[i][1]][2]);
+        Vec3f t2(obj.vt_list[obj.f_vt_list[i][2]][0],obj.vt_list[obj.f_vt_list[i][2]][1],obj.vt_list[obj.f_vt_list[i][2]][2]);
+
+        Vec3f n0(obj.vn_list[obj.f_list[i][0]][0],obj.vn_list[obj.f_list[i][0]][1],obj.vn_list[obj.f_list[i][0]][2]);
+        Vec3f n1(obj.vn_list[obj.f_list[i][0]][0],obj.vn_list[obj.f_list[i][0]][1],obj.vn_list[obj.f_list[i][0]][2]);
+        Vec3f n2(obj.vn_list[obj.f_list[i][0]][0],obj.vn_list[obj.f_list[i][0]][1],obj.vn_list[obj.f_list[i][0]][2]);
         
-        
+        //std::cout<<t0<<std::endl;
+
         if(intensity>0){
-            x0 = (x0+1.)*width/2.+.5;
-            y0 = (y0+1.)*height/2.+.5;
-            x1 = (x1+1.)*width/2.+.5;
-            y1 = (y1+1.)*height/2.+.5;
-            x2 = (x2+1.)*width/2.+.5;
-            y2 = (y2+1.)*height/2.+.5;
-            fill_triangle(zbuffer,x0,y0,z0,x1,y1,z1,x2,y2,z2,image,TGAColor(intensity*255, intensity*255, intensity*255, 255));
+            p0.x = (p0.x+1.)*width/2.+.5;
+            p0.y = (p0.y+1.)*height/2.+.5;
+            p1.x = (p1.x+1.)*width/2.+.5;
+            p1.y = (p1.y+1.)*height/2.+.5;
+            p2.x = (p2.x+1.)*width/2.+.5;
+            p2.y = (p2.y+1.)*height/2.+.5;
+            // Vec2f cur_uv(t0.x,t0.y);
+            // TGAColor cur_color = obj.diffuse(cur_uv);
+            fill_triangle(zbuffer,p0,p1,p2,image,t0,t1,t2,n0,n1,n2);
         }
         
 

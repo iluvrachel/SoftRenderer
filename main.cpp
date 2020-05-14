@@ -7,8 +7,41 @@ const TGAColor white = TGAColor(255, 255, 255, 255);
 const TGAColor red   = TGAColor(255, 0,   0,   255);
 const int height = 400;
 const int width = 400;
+const int depth = 200;
+Vec3f camera(0,0,3);
 
 Obj obj;
+
+// translate between vec and mat
+Vec3f m2v(Matrix m) {
+    return Vec3f(m[0][0]/m[3][0], m[1][0]/m[3][0], m[2][0]/m[3][0]);
+}
+
+// quaternion: 1 stand for vector, 0 stand for point
+Matrix v2m(Vec3f v) {
+    Matrix m(4, 1);
+    m[0][0] = v.x;
+    m[1][0] = v.y;
+    m[2][0] = v.z;
+    m[3][0] = 1.f;
+    return m;
+}
+
+
+Matrix viewport(int x, int y, int w, int h) {
+    Matrix m = Matrix::identity(4);
+    m[0][3] = x+w/2.f;
+    m[1][3] = y+h/2.f;
+    m[2][3] = depth/2.f;
+
+    m[0][0] = w/2.f;
+    m[1][1] = h/2.f;
+    m[2][2] = depth/2.f;
+    return m;
+}
+
+
+//if(Projection[0][0]==1)std::cout<<"ok";
 
 void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) { 
     bool steep = false; 
@@ -40,11 +73,12 @@ void line(int x0, int y0, int x1, int y1, TGAImage &image, TGAColor color) {
     } 
 } 
 
-void draw_triangle(int x0,int y0,int x1,int y1,int x2,int y2,TGAImage &image,TGAColor color){
-    line(x0,y0,x1,y1,image,color);
-    line(x2,y2,x1,y1,image,color);
-    line(x0,y0,x2,y2,image,color);
-}
+//draw line
+// void draw_triangle(int x0,int y0,int x1,int y1,int x2,int y2,TGAImage &image,TGAColor color){
+//     line(x0,y0,x1,y1,image,color);
+//     line(x2,y2,x1,y1,image,color);
+//     line(x0,y0,x2,y2,image,color);
+// }
 
 void swap(int& x0, int& y0, int& x1, int& y1){
     int tmp_x = x0;
@@ -90,8 +124,13 @@ bool edge_equation(int x0,int y0,int x1,int y1,int x2,int y2, int cur_x, int cur
     return false;
 }
 
+//MVP matrix
+Matrix Projection = Matrix::identity(4);
+Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
+
 void fill_triangle(float *zbuffer,Vec3f p0,Vec3f p1,Vec3f p2,
                     TGAImage &image,Vec3f t0,Vec3f t1,Vec3f t2, Vec3f n0,Vec3f n1,Vec3f n2){
+
     // find bounding box of the triangle
     int bb_top = p0.y > p1.y ? (p0.y > p2.y ? p0.y : p2.y) : (p1.y > p2.y ? p1.y : p2.y) ;
     int bb_bottom = p0.y < p1.y ? (p0.y < p2.y ? p0.y : p2.y) : (p1.y < p2.y ? p1.y : p2.y) ;
@@ -139,34 +178,34 @@ void fill_triangle(float *zbuffer,Vec3f p0,Vec3f p1,Vec3f p2,
     }
 }
 
-void draw_wireframe(std::string obj_path,TGAImage &image,int height, int width){
-    Obj obj;
-    obj.read_obj(obj_path);
-    for(int i=0;i<obj.f_list.size(); i++){
+// void draw_wireframe(std::string obj_path,TGAImage &image,int height, int width){
+//     Obj obj;
+//     obj.read_obj(obj_path);
+//     for(int i=0;i<obj.f_list.size(); i++){
         
-        float x0 = obj.v_list[obj.f_list[i][0]][0];
-        //std::cout<<obj.f_list[i]<<" "<<obj.f_list[i+1]<<std::endl;
-        x0 = (x0+1.)*width/2.;
-        float y0 = obj.v_list[obj.f_list[i][0]][1];
-        y0 = (y0+1.)*height/2.;
-        float x1 = obj.v_list[obj.f_list[i][1]][0];
-        x1 = (x1+1.)*width/2.;
-        float y1 = obj.v_list[obj.f_list[i][1]][1];
-        y1 = (y1+1.)*height/2.;
-        float x2 = obj.v_list[obj.f_list[i][2]][0];
-        x2 = (x2+1.)*width/2.;
-        float y2 = obj.v_list[obj.f_list[i][2]][1];
-        y2 = (y2+1.)*height/2.;
+//         float x0 = obj.v_list[obj.f_list[i][0]][0];
+//         //std::cout<<obj.f_list[i]<<" "<<obj.f_list[i+1]<<std::endl;
+//         x0 = (x0+1.)*width/2.;
+//         float y0 = obj.v_list[obj.f_list[i][0]][1];
+//         y0 = (y0+1.)*height/2.;
+//         float x1 = obj.v_list[obj.f_list[i][1]][0];
+//         x1 = (x1+1.)*width/2.;
+//         float y1 = obj.v_list[obj.f_list[i][1]][1];
+//         y1 = (y1+1.)*height/2.;
+//         float x2 = obj.v_list[obj.f_list[i][2]][0];
+//         x2 = (x2+1.)*width/2.;
+//         float y2 = obj.v_list[obj.f_list[i][2]][1];
+//         y2 = (y2+1.)*height/2.;
 
 
         
-        //std::cout<<x0<<" "<<x1<<" "<<x2<<std::endl;
-        draw_triangle(x0,y0,x1,y1,x2,y2,image,white);
+//         //std::cout<<x0<<" "<<x1<<" "<<x2<<std::endl;
+//         draw_triangle(x0,y0,x1,y1,x2,y2,image,white);
 
 
-    }
+//     }
 
-}
+// }
 
 void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
 
@@ -201,6 +240,13 @@ void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
         Vec3f p1(x1,y1,z1);
         Vec3f p2(x2,y2,z2);
 
+        Projection[3][2] = -1.f/camera.z;
+        //std::cout<<"p0"<<p0<<std::endl;
+        Vec3f p0_proj =  m2v(ViewPort*Projection*v2m(p0));
+        //std::cout<<"p0p"<<p0_proj<<std::endl;
+        Vec3f p1_proj =  m2v(ViewPort*Projection*v2m(p1));
+        Vec3f p2_proj =  m2v(ViewPort*Projection*v2m(p2));
+
         Vec3f n = (p2-p0)^(p1-p0);
         n.normalize();
         //std::cout<<p2<<std::endl;
@@ -218,18 +264,18 @@ void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
         Vec3f n1(obj.vn_list[obj.f_list[i][0]][0],obj.vn_list[obj.f_list[i][0]][1],obj.vn_list[obj.f_list[i][0]][2]);
         Vec3f n2(obj.vn_list[obj.f_list[i][0]][0],obj.vn_list[obj.f_list[i][0]][1],obj.vn_list[obj.f_list[i][0]][2]);
         
-        //std::cout<<t0<<std::endl;
+        //std::cout<<i<<std::endl;
 
         if(intensity>0){
-            p0.x = (p0.x+1.)*width/2.+.5;
-            p0.y = (p0.y+1.)*height/2.+.5;
-            p1.x = (p1.x+1.)*width/2.+.5;
-            p1.y = (p1.y+1.)*height/2.+.5;
-            p2.x = (p2.x+1.)*width/2.+.5;
-            p2.y = (p2.y+1.)*height/2.+.5;
+            // p0_proj.x = (p0_proj.x+1.)*width/2.+.5;
+            // p0_proj.y = (p0_proj.y+1.)*height/2.+.5;
+            // p1_proj.x = (p1_proj.x+1.)*width/2.+.5;
+            // p1_proj.y = (p1_proj.y+1.)*height/2.+.5;
+            // p2_proj.x = (p2_proj.x+1.)*width/2.+.5;
+            // p2_proj.y = (p2_proj.y+1.)*height/2.+.5;
             // Vec2f cur_uv(t0.x,t0.y);
             // TGAColor cur_color = obj.diffuse(cur_uv);
-            fill_triangle(zbuffer,p0,p1,p2,image,t0,t1,t2,n0,n1,n2);
+            fill_triangle(zbuffer,p0_proj,p1_proj,p2_proj,image,t0,t1,t2,n0,n1,n2);
         }
         
 

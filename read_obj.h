@@ -1,7 +1,7 @@
 /*
  * @Author: your name
  * @Date: 2020-03-03 15:43:15
- * @LastEditTime: 2020-04-05 21:14:49
+ * @LastEditTime: 2020-05-13 22:11:25
  * @LastEditors: Please set LastEditors
  * @Description: In User Settings Edit
  * @FilePath: \SoftRenderer\read_obj.h
@@ -112,7 +112,7 @@ void Obj::read_obj(std::string file_name){
 }
 
 void Obj::load_texture(const char* filename,TGAImage& img){
-    std::cout << "loading " <<(img.read_tga_file(filename) ? "ok": "failed") << std::endl;
+    std::cout << "loading " <<(img.read_tga_file(filename) ? "load ok": "failed") << std::endl;
     img.flip_vertically();
 }
 

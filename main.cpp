@@ -9,6 +9,8 @@ const int height = 400;
 const int width = 400;
 const int depth = 200;
 Vec3f camera(0,0,3);
+Vec3f eye(1,1,3);
+Vec3f at(0,0,0);
 
 Obj obj;
 
@@ -38,6 +40,24 @@ Matrix viewport(int x, int y, int w, int h) {
     m[1][1] = h/2.f;
     m[2][2] = depth/2.f;
     return m;
+}
+
+Matrix lookat(Vec3f eye, Vec3f at, Vec3f up) {
+    Vec3f z = (eye-at).normalize();
+    Vec3f x = (up^z).normalize();
+    Vec3f y = (z^x).normalize();
+    //transform the model frame——View
+    Matrix Minv = Matrix::identity(4);
+    //transpose to at ——Model
+    Matrix Tr   = Matrix::identity(4);
+    for (int i=0; i<3; i++) {
+        Minv[0][i] = x[i];
+        Minv[1][i] = y[i];
+        Minv[2][i] = z[i];
+        Tr[i][3] = -at[i];
+    }
+    //View*Model
+    return Minv*Tr;
 }
 
 
@@ -124,9 +144,10 @@ bool edge_equation(int x0,int y0,int x1,int y1,int x2,int y2, int cur_x, int cur
     return false;
 }
 
-//MVP matrix
+//MVPW matrix
 Matrix Projection = Matrix::identity(4);
 Matrix ViewPort   = viewport(width/8, height/8, width*3/4, height*3/4);
+Matrix ModelView = lookat(eye, at, Vec3f(0,1,0));
 
 void fill_triangle(float *zbuffer,Vec3f p0,Vec3f p1,Vec3f p2,
                     TGAImage &image,Vec3f t0,Vec3f t1,Vec3f t2, Vec3f n0,Vec3f n1,Vec3f n2){
@@ -242,10 +263,10 @@ void draw_meshface(std::string obj_path,TGAImage &image,int height, int width){
 
         Projection[3][2] = -1.f/camera.z;
         //std::cout<<"p0"<<p0<<std::endl;
-        Vec3f p0_proj =  m2v(ViewPort*Projection*v2m(p0));
+        Vec3f p0_proj =  m2v(ViewPort*Projection*ModelView*v2m(p0));
         //std::cout<<"p0p"<<p0_proj<<std::endl;
-        Vec3f p1_proj =  m2v(ViewPort*Projection*v2m(p1));
-        Vec3f p2_proj =  m2v(ViewPort*Projection*v2m(p2));
+        Vec3f p1_proj =  m2v(ViewPort*Projection*ModelView*v2m(p1));
+        Vec3f p2_proj =  m2v(ViewPort*Projection*ModelView*v2m(p2));
 
         Vec3f n = (p2-p0)^(p1-p0);
         n.normalize();
